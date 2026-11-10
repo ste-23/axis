@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Axis Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f4f0;
+      --surface: #ffffff;
+      --border: rgba(0,0,0,0.12);
+      --border-strong: rgba(0,0,0,0.28);
+      --text: #1a1a18;
+      --text-muted: #6b6b66;
+      --input-bg: #f0efe9;
+      --radius: 7px;
+      --font-ui: 'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+      --font-mono: 'DM Mono', 'Courier New', monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111110;
+        --surface: #1c1c1a;
+        --border: rgba(255,255,255,0.1);
+        --border-strong: rgba(255,255,255,0.22);
+        --text: #e8e7e2;
+        --text-muted: #888880;
+        --input-bg: #252522;
+      }
+    }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 12px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 290px 1fr;
+      gap: 10px;
+      max-width: 1100px;
+      margin: 0 auto;
+      height: calc(100vh - 24px);
+      min-height: 520px;
+    }
+    @media (max-width: 660px) {
+      .layout { grid-template-columns: 1fr; height: auto; }
+    }
+
+    /* ── Left panel ── */
+    .panel {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      overflow-y: auto;
+    }
+
+    .sec {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin: 10px 0 5px;
+    }
+    .sec:first-child { margin-top: 0; }
+
+    hr { border: none; border-top: 0.5px solid var(--border); margin: 8px 0; }
+
+    .grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr auto; gap: 5px; align-items: end; margin-bottom: 4px; }
+
+    .field { display: flex; flex-direction: column; gap: 2px; }
+    .field label { font-size: 10px; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+
+    input[type="number"],
+    input[type="text"],
+    select {
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--text);
+      background: var(--input-bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4px 7px;
+      width: 100%;
+      outline: none;
+      transition: border-color .15s;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 28px;
+    }
+    input[type="number"] { font-family: var(--font-mono); }
+    input:focus, select:focus { border-color: var(--border-strong); }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--text);
+      cursor: pointer;
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 7px center;
+      padding-right: 24px;
+    }
+
+    .chk-cell {
+      display: flex;
+      align-items: center; gap: 4px;
+      height: 28px; cursor: pointer; user-select: none;
+    }
+    .chk-cell input[type="checkbox"] { width: 13px;
+      height: 13px; accent-color: var(--text); cursor: pointer; flex-shrink: 0; }
+    .chk-cell span { font-size: 10px; color: var(--text-muted); line-height: 1.2; }
+
+    .row-label { font-size: 10px; font-weight: 600; color: var(--text-muted); margin: 6px 0 3px; }
+
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px; }
+    .tab {
+      font-size: 11px; font-weight: 600; padding: 4px;
+      border-radius: 5px;
+      border: 0.5px solid var(--border);
+      background: var(--input-bg); color: var(--text-muted);
+      cursor: pointer; text-align: center; transition: background .12s, color .12s;
+    }
+    .tab.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+    .axis-panel { display: none; }
+    .axis-panel.active { display: block; }
+
+    /* Buttons */
+    .btn-row { display: grid;
+      grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-top: 8px; }
+    .btn {
+      font-family: var(--font-ui);
+      font-size: 11px; font-weight: 600;
+      color: var(--bg); background: var(--text); border: none;
+      border-radius: var(--radius); padding: 7px 4px; cursor: pointer;
+      text-align: center;
+      transition: opacity .15s, transform .1s; white-space: nowrap;
+    }
+    .btn:hover { opacity: .82; }
+    .btn:active { transform: scale(.97); }
+    .btn.secondary { background: var(--input-bg); color: var(--text);
+      border: 0.5px solid var(--border); }
+    .btn.secondary:hover { border-color: var(--border-strong); }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 18px; left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: var(--text); color: var(--bg);
+      font-size: 12px; font-weight: 500; padding: 6px 14px;
+      border-radius: 20px;
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s, transform .2s; white-space: nowrap; z-index: 100;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Right panel ── */
+    .preview-panel {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      /* Hidden overflow ensures the graph scales to fit the workspace perfectly */
+      overflow: hidden; 
+    }
+    #preview-svg {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #preview-svg img {
+      display: block;
+      /* Naturally scale down entire SVG (labels & lines) to fit panel bounds */
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      cursor: context-menu; /* Shows typical arrow cursor indicating it's an image */
+    }
+    .error-msg { font-size: 12px; color: var(--text-muted); }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type=number] { -moz-appearance: textfield; }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <div class="panel">
+
+    <div class="sec">Ranges</div>
+    <div class="grid4">
+      <div class="field"><label>X min</label><input type="number" id="xmin" value="-5" step="1"></div>
+      <div class="field"><label>X max</label><input type="number" id="xmax" value="8"  step="1"></div>
+      <div class="field"><label>Y min</label><input type="number" id="ymin" value="-4" step="1"></div>
+      <div class="field"><label>Y max</label><input type="number" id="ymax" value="6"  step="1"></div>
+    </div>
+
+    <hr>
+
+    <div class="sec">Labels &amp; Fonts</div>
+    <div class="grid2">
+      <div class="field"><label>X label</label><input type="text" id="xlabel" value="x"></div>
+      <div class="field"><label>Y label</label><input type="text" id="ylabel" value="y"></div>
+    </div>
+    <div class="field" style="margin-bottom:5px">
+      <label>Position</label>
+      <select id="labelpos">
+        <option value="end">At end of axis</option>
+        <option value="center">Centred (below / left)</option>
+      </select>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Label Size (px)</label>
+        <input type="number" id="label-size" value="16" min="8" max="64" step="1">
+      </div>
+      <div class="field">
+        <label>Number Size (px)</label>
+        <input type="number" id="num-size" value="12" min="8" max="64" step="1">
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="sec">Numbers Visibility</div>
+    <div class="field" style="margin-bottom:5px">
+      <label>Show numbers</label>
+      <select id="numshow">
+        <option value="major">At every major tick</option>
+        <option value="custom">Custom list</option>
+        <option value="none">None</option>
+      </select>
+    </div>
+    <div class="field" id="custom-row" style="display:none;margin-bottom:5px">
+      <label>Values (comma-separated)</label>
+      <input type="text" id="customvals" value="-4,-2,0,2,4,6">
+    </div>
+
+    <hr>
+
+    <div class="sec">Grid Aspect Ratio &amp; Scaling</div>
+    <label class="chk-cell" style="margin-bottom: 8px;">
+      <input type="checkbox" id="square-grid" checked>
+      <span>Force square grid boxes</span>
+    </label>
+    
+    <div class="grid2">
+      <div class="field">
+        <label>Width: <span id="val-sw">1</span>x</label>
+        <input type="range" id="scale-w" min="0.2" max="3" step="0.1" value="1">
+      </div>
+      <div class="field">
+        <label>Height: <span id="val-sh">1</span>x</label>
+        <input type="range" id="scale-h" min="0.2" max="3" step="0.1" value="1">
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="sec">Ticks &amp; grid lines</div>
+    <label class="chk-cell" style="margin-bottom: 8px;">
+      <input type="checkbox" id="link-axes" checked>
+      <span>Link X &amp; Y options</span>
+    </label>
+
+    <div class="tabs">
+      <div class="tab active" id="tab-x" onclick="switchTab('x')">X axis</div>
+      <div class="tab"        id="tab-y" onclick="switchTab('y')">Y axis</div>
+    </div>
+
+    <div class="axis-panel active" id="panel-x">
+      <div class="row-label">Major</div>
+      <div class="grid3">
+        <div class="field"><label>Spacing</label><input type="number" id="x-major" value="1" min="0.01" step="0.5"></div>
+        <div class="field"><label>Size (px)</label><input type="number" id="x-major-size" value="8" min="1" step="1"></div>
+        <label class="chk-cell"><input type="checkbox" id="x-major-grid" checked><span>Grid</span></label>
+      </div>
+      <div class="row-label">Minor</div>
+      <div class="grid3">
+        <div class="field"><label>Spacing</label><input type="number" id="x-minor" value="0.5" min="0.01" step="0.1"></div>
+        <div class="field"><label>Size (px)</label><input type="number" id="x-minor-size" value="4" min="1" step="1"></div>
+        <label class="chk-cell"><input type="checkbox" id="x-minor-grid"><span>Grid</span></label>
+      </div>
+    </div>
+
+    <div class="axis-panel" id="panel-y">
+      <div class="row-label">Major</div>
+      <div class="grid3">
+        <div class="field"><label>Spacing</label><input type="number" id="y-major" value="1" min="0.01" step="0.5"></div>
+        <div class="field"><label>Size (px)</label><input type="number" id="y-major-size" value="8" min="1" step="1"></div>
+        <label class="chk-cell"><input type="checkbox" id="y-major-grid" checked><span>Grid</span></label>
+      </div>
+      <div class="row-label">Minor</div>
+      <div class="grid3">
+        <div class="field"><label>Spacing</label><input type="number" id="y-minor" value="0.5" min="0.01" step="0.1"></div>
+        <div class="field"><label>Size (px)</label><input type="number" id="y-minor-size" value="4" min="1" step="1"></div>
+        <label class="chk-cell"><input type="checkbox" id="y-minor-grid"><span>Grid</span></label>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="btn-row">
+      <button class="btn secondary" onclick="downloadSVG()">↓ SVG</button>
+      <button class="btn secondary" onclick="downloadPNG()">↓ PNG</button>
+    </div>
+
+  </div>
+
+  <div class="preview-panel">
+    <div id="preview-svg"></div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  function switchTab(axis) {
+    ['x','y'].forEach(a => {
+      document.getElementById('tab-'+a).classList.toggle('active', a===axis);
+      document.getElementById('panel-'+a).classList.toggle('active', a===axis);
+    });
+  }
+
+  const inputIds = [
+    'xmin','xmax','ymin','ymax','xlabel','ylabel','labelpos', 'label-size', 'num-size',
+    'x-major','x-major-size','x-minor','x-minor-size','x-major-grid','x-minor-grid',
+    'y-major','y-major-size','y-minor','y-minor-size','y-major-grid','y-minor-grid',
+    'numshow','customvals', 'square-grid', 'link-axes', 'scale-w', 'scale-h'
+  ];
+
+  // Attach event listeners including the Link Axes synchronization logic
+  inputIds.forEach(id => { 
+    const el = document.getElementById(id); 
+    if(el) {
+      const handler = (e) => {
+        // Handle Sliders vs Square Grid toggle logic
+        if (id === 'scale-w' || id === 'scale-h') {
+          document.getElementById('square-grid').checked = false;
+          document.getElementById('val-sw').textContent = document.getElementById('scale-w').value;
+          document.getElementById('val-sh').textContent = document.getElementById('scale-h').value;
+        } else if (id === 'square-grid' && document.getElementById('square-grid').checked) {
+          document.getElementById('scale-w').value = 1;
+          document.getElementById('scale-h').value = 1;
+          document.getElementById('val-sw').textContent = "1";
+          document.getElementById('val-sh').textContent = "1";
+        }
+
+        const linkEl = document.getElementById('link-axes');
+        if (linkEl && linkEl.checked) {
+          if (id === 'link-axes') {
+            ['major', 'major-size', 'minor', 'minor-size', 'major-grid', 'minor-grid'].forEach(suffix => {
+              const xEl = document.getElementById('x-' + suffix);
+              const yEl = document.getElementById('y-' + suffix);
+              if (xEl && yEl) {
+                if (xEl.type === 'checkbox') yEl.checked = xEl.checked;
+                else yEl.value = xEl.value;
+              }
+            });
+          } else if (id.startsWith('x-')) {
+            const yId = id.replace('x-', 'y-');
+            const yEl = document.getElementById(yId);
+            if (yEl) {
+              if (el.type === 'checkbox') yEl.checked = el.checked;
+              else yEl.value = el.value;
+            }
+          } else if (id.startsWith('y-')) {
+            const xId = id.replace('y-', 'x-');
+            const xEl = document.getElementById(xId);
+            if (xEl) {
+              if (el.type === 'checkbox') xEl.checked = el.checked;
+              else xEl.value = el.value;
+            }
+          }
+        }
+        render();
+      };
+      el.addEventListener('input', handler);
+      if (el.type === 'checkbox') el.addEventListener('change', handler); // Guarantee checkboxes fire properly
+    }
+  });
+
+  document.getElementById('numshow').addEventListener('change', e => {
+    document.getElementById('custom-row').style.display = e.target.value==='custom' ? 'flex' : 'none';
+    render();
+  });
+  
+  const fmt = v => Number.isInteger(v) ? String(v) : String(+v.toFixed(4));
+  const nv  = id => Math.abs(+document.getElementById(id).value) || 0;
+  const bv  = id => document.getElementById(id).checked;
+  const sv  = id => document.getElementById(id).value;
+  
+  function buildSVG(opts, darkMode) {
+    const { xmin,xmax,ymin,ymax,xl,yl,lpos, labelSize, numSize,
+      xMajorStep,xMajorSize,xMinorStep,xMinorSize,xMajorGrid,xMinorGrid,
+      yMajorStep,yMajorSize,yMinorStep,yMinorSize,yMajorGrid,yMinorGrid,
+      showNums, scaleW, scaleH } = opts;
+      
+    const xRange = xmax - xmin;
+    const yRange = ymax - ymin;
+    const BASE_DIM = 600; // Base relative coordinate dimension 
+
+    // --- Dynamic Padding Calculation to prevent text cutoffs ---
+    let maxNumLen = 1;
+    if (showNums) {
+      showNums.forEach(n => {
+        let l = fmt(n).length;
+        if (l > maxNumLen) maxNumLen = l;
+      });
+    }
+    
+    // Estimate width of text in pixels 
+    const numWidth = Math.max(3, maxNumLen) * numSize * 0.6;
+    const xlWidth = xl.length * labelSize * 0.6;
+    const ylWidth = yl.length * labelSize * 0.6;
+
+    let PAD = 64;
+    if (lpos === 'end') {
+      const rightPad = xlWidth + 30; // Space for X label at right tip
+      const topPad = labelSize + 30; // Space for Y label at top tip
+      const leftPad = numWidth + 15; // Space for numbers on left
+      const bottomPad = numSize * 2 + 10; // Space for numbers at bottom
+      PAD = Math.ceil(Math.max(PAD, rightPad, topPad, leftPad, bottomPad));
+    } else {
+      const leftPad = labelSize * 1.5 + numWidth + 15; // Space for Y label & numbers
+      const bottomPad = labelSize * 1.5 + numSize * 1.5 + 15; // Space for X label & numbers
+      const rightPad = xlWidth / 2 + 20; // Half length of centered X label
+      const topPad = ylWidth / 2 + 20;   // Half length of centered Y label
+      PAD = Math.ceil(Math.max(PAD, leftPad, bottomPad, rightPad, topPad));
+    }
+    // -----------------------------------------------------------
+
+    // Calculate grid units
+    let uW = xRange / xMajorStep;
+    let uH = yRange / yMajorStep;
+    if (uW <= 0) uW = 1; 
+    if (uH <= 0) uH = 1;
+    let maxU = Math.max(uW, uH);
+
+    // Initial proportional bounding
+    let targetW = BASE_DIM * (uW / maxU);
+    let targetH = BASE_DIM * (uH / maxU);
+
+    // Apply manual user scaling
+    targetW *= scaleW;
+    targetH *= scaleH;
+
+    // Strict Aspect Ratio Checks (1:2 and 2:1 bounds)
+    let ratio = targetH / targetW;
+    if (ratio > 2 || ratio < 0.5) {
+      if (opts.squareGrid) {
+        // Inform UI to visually uncheck square grid lock
+        const sqEl = document.getElementById('square-grid');
+        if (sqEl) sqEl.checked = false;
+        opts.squareGrid = false;
+      }
+      // Cap dimensions strictly
+      if (ratio > 2) targetH = targetW * 2;
+      if (ratio < 0.5) targetW = targetH * 2;
+    }
+
+    // Normalize scale so text fonts stay legible vs graph size
+    let maxDim = Math.max(targetW, targetH);
+    let desiredMax = BASE_DIM * Math.max(scaleW, scaleH);
+    if (maxDim < desiredMax) {
+      let scaleUp = desiredMax / maxDim;
+      targetW *= scaleUp;
+      targetH *= scaleUp;
+    }
+
+    const plotW = Math.round(targetW);
+    const plotH = Math.round(targetH);
+
+    // Final Canvas dimensions (dynamic padding ensures everything fits)
+    const W = plotW + PAD * 2;
+    const H = plotH + PAD * 2;
+
+    const toSX = v => PAD + (v-xmin)/xRange * plotW;
+    const toSY = v => PAD + (ymax-v)/yRange * plotH;
+
+    const ox  = toSX(0), oy = toSY(0);
+    const oxC = Math.max(PAD, Math.min(PAD+plotW, ox));
+    const oyC = Math.max(PAD, Math.min(PAD+plotH, oy));
+
+    const ac  = darkMode ? '#e8e7e2' : '#1a1a18';
+    const nc  = darkMode ? '#c8c7c2' : '#1a1a18';
+    const bg  = darkMode ? '#1c1c1a' : '#ffffff';
+    
+    // Grid colors
+    const gmj = darkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+    const gmn = darkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)';
+    
+    const aW=8, aH=5.5;
+
+    let gl='', tk='';
+
+    const vG = (sx,c,d) =>
+      `<line x1="${sx.toFixed(2)}" y1="${PAD}" x2="${sx.toFixed(2)}" y2="${PAD+plotH}" stroke="${c}" stroke-width="0.8"${d?' stroke-dasharray="3 3"':''}/>`;
+    const hG = (sy,c,d) =>
+      `<line x1="${PAD}" y1="${sy.toFixed(2)}" x2="${PAD+plotW}" y2="${sy.toFixed(2)}" stroke="${c}" stroke-width="0.8"${d?' stroke-dasharray="3 3"':''}/>`;
+
+    function xTicks(step, size, doGrid, gridColor, dashed, bold) {
+      if (step<=0) return;
+      let v = Math.ceil(xmin/step)*step;
+      while (v <= xmax+1e-9) {
+        const vr=+v.toFixed(10), sx=toSX(vr);
+        if (doGrid) gl += vG(sx, gridColor, dashed);
+        tk += `<line x1="${sx.toFixed(2)}" y1="${(oyC-size).toFixed(2)}" x2="${sx.toFixed(2)}" y2="${(oyC+size).toFixed(2)}" stroke="${ac}" stroke-width="${bold?2.2:1}"/>`;
+        if (bold && showNums.has(vr) && Math.abs(vr)>1e-9) {
+          const yPos = oyC + size + (numSize * 1.1) + 2;
+          tk += `<text x="${sx.toFixed(2)}" y="${yPos.toFixed(2)}" text-anchor="middle" font-weight="bold" font-family="'DM Mono','Courier New',monospace" font-size="${numSize}" fill="${nc}">${fmt(vr)}</text>`;
+        }
+        v += step;
+      }
+    }
+    function yTicks(step, size, doGrid, gridColor, dashed, bold) {
+      if (step<=0) return;
+      let v = Math.ceil(ymin/step)*step;
+      while (v <= ymax+1e-9) {
+        const vr=+v.toFixed(10), sy=toSY(vr);
+        if (doGrid) gl += hG(sy, gridColor, dashed);
+        tk += `<line x1="${(oxC-size).toFixed(2)}" y1="${sy.toFixed(2)}" x2="${(oxC+size).toFixed(2)}" y2="${sy.toFixed(2)}" stroke="${ac}" stroke-width="${bold?2.2:1}"/>`;
+        if (bold && showNums.has(vr) && Math.abs(vr)>1e-9) {
+          const xPos = oxC - size - 6;
+          const yPos = sy + (numSize * 0.35);
+          tk += `<text x="${xPos.toFixed(2)}" y="${yPos.toFixed(2)}" text-anchor="end" font-weight="bold" font-family="'DM Mono','Courier New',monospace" font-size="${numSize}" fill="${nc}">${fmt(vr)}</text>`;
+        }
+        v += step;
+      }
+    }
+
+    xTicks(xMinorStep, xMinorSize, xMinorGrid, gmn, true,  false);
+    xTicks(xMajorStep, xMajorSize, xMajorGrid, gmj, false, true);
+    yTicks(yMinorStep, yMinorSize, yMinorGrid, gmn, true,  false);
+    yTicks(yMajorStep, yMajorSize, yMajorGrid, gmj, false, true);
+    
+    if (showNums.has(0)) {
+      const xZero = oxC - (numSize * 0.75);
+      const yZero = oyC + (numSize * 1.1) + 2;
+      tk += `<text x="${xZero.toFixed(2)}" y="${yZero.toFixed(2)}" text-anchor="middle" font-weight="bold" font-family="'DM Mono','Courier New',monospace" font-size="${numSize}" fill="${nc}">0</text>`;
+    }
+      
+    const axes = `
+      <line x1="${PAD-10}" y1="${oyC.toFixed(2)}" x2="${PAD+plotW+12}" y2="${oyC.toFixed(2)}" stroke="${ac}" stroke-width="3" stroke-linecap="round"/>
+      <polygon points="${PAD+plotW+18},${oyC.toFixed(2)} ${PAD+plotW+18-aW},${(oyC-aH).toFixed(2)} ${PAD+plotW+18-aW},${(oyC+aH).toFixed(2)}" fill="${ac}"/>
+      <line x1="${oxC.toFixed(2)}" y1="${PAD+plotH+10}" x2="${oxC.toFixed(2)}" y2="${PAD-12}" stroke="${ac}" stroke-width="3" stroke-linecap="round"/>
+      <polygon points="${oxC.toFixed(2)},${PAD-18} ${(oxC-aH).toFixed(2)},${PAD-18+aW} ${(oxC+aH).toFixed(2)},${PAD-18+aW}" fill="${ac}"/>`;
+      
+    // Removed default italics for a cleaner look with actual words
+    const fl = `font-family="'DM Sans','Helvetica Neue',Arial,sans-serif" font-size="${labelSize}" font-weight="600"`;
+    let xlbl='', ylbl='';
+    if (lpos==='end') {
+      xlbl = `<text x="${PAD+plotW+24}" y="${(oyC+(labelSize*0.3)).toFixed(2)}" text-anchor="start" ${fl} fill="${ac}">${xl}</text>`;
+      ylbl = `<text x="${oxC.toFixed(2)}" y="${PAD-28}" text-anchor="middle" ${fl} fill="${ac}">${yl}</text>`;
+    } else {
+      const mx = PAD + plotW/2, my = PAD + plotH/2;
+      const xlblY = H - Math.max(10, labelSize * 0.5);
+      const yOffset = Math.max(16, labelSize * 1.1); // Safely positions Y Label on far left
+      
+      xlbl = `<text x="${mx.toFixed(2)}" y="${xlblY}" text-anchor="middle" ${fl} fill="${ac}">${xl}</text>`;
+      ylbl = `<text transform="rotate(-90, ${yOffset}, ${my.toFixed(2)})" x="${yOffset}" y="${my.toFixed(2)}" text-anchor="middle" ${fl} fill="${ac}">${yl}</text>`;
+    }
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="background:${bg};display:block">${gl}${axes}${tk}${xlbl}${ylbl}</svg>`;
+  }
+
+  function getOpts() {
+    const xmin=+sv('xmin'), xmax=+sv('xmax'), ymin=+sv('ymin'), ymax=+sv('ymax');
+    const xl=sv('xlabel')||'x', yl=sv('ylabel')||'y', lpos=sv('labelpos');
+    const labelSize = nv('label-size') || 14; 
+    const numSize = nv('num-size') || 12; 
+    
+    const xMajorStep=nv('x-major')||1, xMajorSize=nv('x-major-size')||8;
+    const xMinorStep=nv('x-minor'),    xMinorSize=nv('x-minor-size')||4;
+    const xMajorGrid=bv('x-major-grid'), xMinorGrid=bv('x-minor-grid');
+    const yMajorStep=nv('y-major')||1, yMajorSize=nv('y-major-size')||8;
+    const yMinorStep=nv('y-minor'),    yMinorSize=nv('y-minor-size')||4;
+    const yMajorGrid=bv('y-major-grid'), yMinorGrid=bv('y-minor-grid');
+    const numshow=sv('numshow'), customRaw=sv('customvals');
+    const squareGrid = bv('square-grid');
+    const scaleW = +sv('scale-w') || 1;
+    const scaleH = +sv('scale-h') || 1;
+    
+    let showNums=new Set();
+    if (numshow==='major') {
+      let v=Math.ceil(xmin/xMajorStep)*xMajorStep;
+      while(v<=xmax+1e-9){showNums.add(+v.toFixed(10));v+=xMajorStep;}
+      v=Math.ceil(ymin/yMajorStep)*yMajorStep;      while(v<=ymax+1e-9){showNums.add(+v.toFixed(10));v+=yMajorStep;}
+    } else if (numshow==='custom') {
+      customRaw.split(',').map(t=>+t.trim()).filter(n=>!isNaN(n)).forEach(n=>showNums.add(n));
+    }
+    
+    return { xmin,xmax,ymin,ymax,xl,yl,lpos, labelSize, numSize,
+      xMajorStep,xMajorSize,xMinorStep,xMinorSize,xMajorGrid,xMinorGrid,
+      yMajorStep,yMajorSize,yMinorStep,yMinorSize,yMajorGrid,yMinorGrid,
+      showNums, squareGrid, scaleW, scaleH, valid:xmin<xmax&&ymin<ymax };
+  }
+
+  function render() {
+    const opts=getOpts();
+    const container=document.getElementById('preview-svg');
+    if (!opts.valid) { container.innerHTML='<span class="error-msg">Check ranges: min must be less than max</span>'; return; }
+    const dark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const rawSVG = buildSVG(opts, dark);
+
+    // Render the SVG inside an <img> tag instead of raw DOM injection.
+    // This allows the user to Right-Click -> "Copy Image" natively in the browser!
+    const encodedSVG = encodeURIComponent(rawSVG);
+    container.innerHTML = `<img src="data:image/svg+xml;charset=utf-8,${encodedSVG}" alt="Axis Preview">`;
+    
+    window._opts=opts;
+  }
+
+  /* SVG → canvas (uses actual SVG dimensions for pixel-perfect output) */
+  function svgToCanvas(svgStr) {
+    return new Promise((res, rej) => {
+      const scale = 2;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = svgStr;
+      const svgEl = tmp.querySelector('svg');
+      const W = +svgEl.getAttribute('width');
+      const H = +svgEl.getAttribute('height');
+
+      const blob = new Blob([svgStr], {type:'image/svg+xml'});
+      const url  = URL.createObjectURL(blob);
+      const img  = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width=W*scale; c.height=H*scale;
+        const ctx=c.getContext('2d');
+        ctx.scale(scale,scale);
+        ctx.drawImage(img,0,0,W,H);
+        URL.revokeObjectURL(url);
+        res(c);
+      };
+      img.onerror = rej;
+      img.src = url;
+    });
+  }
+
+  function toast(msg) {
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 2200);
+  }
+
+  function downloadSVG() {
+    if (!window._opts) return;
+    const svg=buildSVG(window._opts, false);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+    a.download='axes.svg'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    toast('SVG downloaded');
+  }
+
+  async function downloadPNG() {
+    if (!window._opts) return;
+    try {
+      const canvas=await svgToCanvas(buildSVG(window._opts, false));
+      const a=document.createElement('a');
+      a.href=canvas.toDataURL('image/png');
+      a.download='axes.png'; a.click();
+      toast('PNG downloaded');
+    } catch(e) { toast('PNG export failed'); }
+  }
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+  render();
+</script>
+
+</body>
+</html>
